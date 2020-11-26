@@ -28,7 +28,7 @@ int main(int argc, char **argv)
   for (int i = 0 ; t <= stop_time ; i++){
     t = i * cond.dt;
     update_velocities(objects, objnum, cond);
-    update_positions(objects, objnum, cond);
+    my_update_positions(objects, objnum, cond);
     bounce(objects, objnum, cond);
     
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
@@ -42,3 +42,10 @@ int main(int argc, char **argv)
 
 // 実習: 以下に my_ で始まる関数を実装する
 // 最終的に phisics2.h 内の事前に用意された関数プロトタイプをコメントアウト
+
+void my_update_positions(Object objs[], const size_t numobj, const Condition cond) {
+  for (int i=0; i<numobj; i++) {
+    objs[i].prev_y = objs[i].y;
+    objs[i].y += objs[i].vy * cond.dt;
+  }
+}
