@@ -1,3 +1,8 @@
+/*
+  画面の上下どちらでもバウンド可能
+  画面外から画面内に入ろうとした場合もバウンド可能
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -18,7 +23,7 @@ int main(int argc, char **argv)
   Object objects[objnum];
 
   // objects[1] は巨大な物体を画面外に... 地球のようなものを想定
-  objects[0] = (Object){ .m = 60.0, .y = -19.9, .vy = 2.0};
+  objects[0] = (Object){ .m = 60.0, .y = -19.9*2, .vy = 2.0};
   objects[1] = (Object){ .m = 100000.0, .y =  1000.0, .vy = 0.0};
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
@@ -29,7 +34,10 @@ int main(int argc, char **argv)
     t = i * cond.dt;
     my_update_velocities(objects, objnum, cond);
     my_update_positions(objects, objnum, cond);
-    bounce(objects, objnum, cond);
+    my_bounce(objects, objnum, cond);
+
+    //デバッグ出力 2> out.txt
+    //fprintf(stderr, "%lf\n", objects[0].y);
     
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
     plot_objects(objects, objnum, t, cond);
@@ -64,14 +72,43 @@ void my_update_velocities(Object objs[], const size_t numobj, const Condition co
 
 
 void my_update_positions(Object objs[], const size_t numobj, const Condition cond) {
+
+  // 現在の位置をprev_yに保存してから更新する
   for (int i=0; i<numobj; i++) {
     objs[i].prev_y = objs[i].y;
     objs[i].y += objs[i].vy * cond.dt;
   }
+
 }
 
 void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
 
-  
-  
+  for (int i=0; i<numobj; i++) {
+
+    // 画面端を横切った場合
+    if (in_screen(objs[i].prev_y, cond) != in_screen(objs[i].y, cond)) {
+      objs[i].vy *= -cond.cor;
+
+      // 下の壁の座標をprev_yとyで挟んでいる場合
+      // つまり、下の壁を通過した場合(上からでも下からでも)
+      if (is_monotonic(objs[i].prev_y, cond.height/2, objs[i].y)) {
+        objs[i].y -= (objs[i].y - cond.height/2) * 2;
+      }
+
+      // 上の壁を通過した場合(上からでも下からでも)
+      if (is_monotonic(objs[i].prev_y, -cond.height/2, objs[i].y)) {
+        objs[i].y += (-cond.height/2 - objs[i].y) * 2;
+      }
+    }
+
+  }
+
+}
+
+int in_screen(double y, const Condition cond) {
+  return -cond.height/2 <= y && y <= cond.height/2;
+}
+
+int is_monotonic(double a, double b, double c) {
+  return (a <= b && b <= c) || (c <= b && b <= a);
 }
