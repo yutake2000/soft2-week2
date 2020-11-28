@@ -3,7 +3,6 @@
   画面外から画面内に入ろうとした場合もバウンド可能
   反発係数を0.01などの小さな値にしたときに自然な挙動をするように、速さだけでなく跳ね上がる距離にも反発係数をかけた
   dtを小さくして、その分スリープ時間を短くした(シミュレーションの1秒が現実時間の200msになるように)
-  初速度を大きくして上の壁とも衝突するようにした
 */
 
 #include <stdio.h>
@@ -40,14 +39,16 @@ int main(int argc, char **argv)
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
   const double stop_time = 400;
   double t = 0;
-  int line = 0;
   printf("\n");
+  int line = 0;
+
+  fusion_objects(objects, &objnum, cond);
   for (int i = 0 ; t <= stop_time ; i++){
     t = i * cond.dt;
     my_update_velocities(objects, objnum, cond);
     my_update_positions(objects, objnum, cond);
     my_bounce(objects, objnum, cond);
-    fusion_objects(objects, objnum, cond);
+    fusion_objects(objects, &objnum, cond);
 
     //デバッグ出力 2> out.txt
     //fprintf(stderr, "%lf\n", objects[0].y);
@@ -115,7 +116,7 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
   line += cond.height + 2;
 
   //情報を表示
-  printf("t = %4.1lf, cor = %0.2lf \r\n", t, cond.cor);
+  printf("t = %4.1lf, cor = %0.2lf numobj = %zu \r\n", t, cond.cor, numobj);
   line++;
   for (int i=0; i<8 && i<numobj; i++) {
     printf("obj[%d].y = %6.2lf, objs[%d].x = %6.2lf \r\n", i, objs[i].y, i, objs[i].x);
@@ -192,11 +193,12 @@ void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
 
 }
 
-void load_objects(int numobj, Object objs[], char filename[], const Condition cond) {
+void load_objects(size_t numobj, Object objs[], char filename[], const Condition cond) {
 
   FILE *fp = fopen(filename, "r");
   if (fp == NULL) {
     fprintf(stderr, "Couldn't open '%s'\r\n", filename);
+    exit(-1);
   }
 
   int buffer_len = 1000;
@@ -223,39 +225,55 @@ void load_objects(int numobj, Object objs[], char filename[], const Condition co
   }
 
   // 初期値を表示
-  /*
   for (int j=0; j<numobj; j++) {
-    printf("%lf %lf %lf %lf %lf \r\n", objs[j].m, objs[j].x, objs[j].y, objs[j].vx, objs[j].vy);
+    printf("%.16lf %.16lf %.16lf %.16lf %.16lf\r\n", objs[j].m, objs[j].x, objs[j].y, objs[j].vx, objs[j].vy);
   }
-  */
 
   fclose(fp);
 
 }
 
-void fusion_objects(Object objs[], int numobj, const Condition cond) {
+void fusion_objects(Object objs[], size_t *numobj, const Condition cond) {
 
-  double threshold = 2;
+  double threshold = 2; // 融合する距離の閾値
+  int count = 0; // 融合した回数(3個が1つになった場合は2回とカウントする)
 
-  for (int i=0; i<numobj; i++) {
-    for (int j=i+1; j<numobj; j++) {
+  for (int i=0; i<*numobj; i++) {
+    for (int j=i+1; j<*numobj; j++) {
 
         double dist = sqrt(pow(objs[i].y - objs[j].y, 2) + pow(objs[i].x - objs[j].x, 2));
 
         if (dist < threshold) {
+          // 合成後の位置は中点
           objs[j].y = (objs[i].y + objs[j].y) / 2;
           objs[j].x = (objs[i].x + objs[j].x) / 2;
+          // 運動量保存から速度を求める
           objs[j].vy = (objs[i].m * objs[i].vy + objs[j].m * objs[j].vy) / (objs[i].m + objs[j].m);
           objs[j].vx = (objs[i].m * objs[i].vx + objs[j].m * objs[j].vx) / (objs[i].m + objs[j].m);
+
           objs[j].m += objs[i].m;
 
+          count++;
+
+          // インデックスの小さい方を後で消滅させるためにm=0としておき、これ以降参照しないようにbreakする
           objs[i].m = 0;
-          objs[i].x = -1000;
+          break;
         }
 
     }
   }
 
+  // バブルソートの要領で残ったオブジェクトを前に詰める
+  for (int i=*numobj; i>=0; i--) {
+    for (int j=0; j<i; j++) {
+      if (objs[j].m == 0) {
+        objs[j] = objs[j+1];
+        objs[j+1].m = 0;
+      }
+    }
+  }
+
+  *numobj -= count;
 }
 
 

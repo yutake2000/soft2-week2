@@ -42,7 +42,7 @@ int in_screen(double y, double x, const Condition cond);
 int is_monotonic(double a, double b, double c);
 
 // オブジェクトファイルを読み込む
-void load_objects(int numobj, Object objs[], char filename[], const Condition cond);
+void load_objects(size_t numobj, Object objs[], char filename[], const Condition cond);
 
 // 近いオブジェクト同士を融合させる
-void fusion_objects(Object objs[], int numobj, const Condition cond);
+void fusion_objects(Object objs[], size_t *numobj, const Condition cond);
