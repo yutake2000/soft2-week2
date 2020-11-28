@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-#include "physics2.h"
+#include "my_bouncing1.h"
 
 int main(int argc, char **argv)
 {
@@ -24,16 +24,18 @@ int main(int argc, char **argv)
 		    .cor = (argc == 2 ? atof(argv[1]) : 0.9)
   };
   
-  size_t objnum = 2;
+  size_t objnum = 3;
   Object objects[objnum];
 
-  // objects[1] は巨大な物体を画面外に... 地球のようなものを想定
-  objects[0] = (Object){ .m = 60.0, .y = -19.9, .x = -30, .vy = 7.0, .vx = 4.0};
-  objects[1] = (Object){ .m = 100000.0, .y =  1000.0, .x = 0, .vy = 0.0, .vx = 0.0};
+  // objects[2] は巨大な物体を画面外に... 地球のようなものを想定
+  objects[0] = (Object){ .m = 60.0, .y = -19.9, .x = -30, .vy = 7.0, .vx = 12};
+  objects[1] = (Object){ .m = 60.0, .y = -19.9, .x = 30, .vy = 4.0, .vx = 6.0};
+  objects[2] = (Object){ .m = 100000.0, .y =  1000.0, .x = 0, .vy = 0.0, .vx = 0.0};
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
   const double stop_time = 400;
   double t = 0;
+  int line = 0;
   printf("\n");
   for (int i = 0 ; t <= stop_time ; i++){
     t = i * cond.dt;
@@ -45,12 +47,13 @@ int main(int argc, char **argv)
     //fprintf(stderr, "%lf\n", objects[0].y);
     
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
-    my_plot_objects(objects, objnum, t, cond);
+    line += my_plot_objects(objects, objnum, t, cond);
     
     // 200 x 1000us = 200 ms ずつ停止
     // ただし、時間の刻み幅が小さいときはそれに合わせて時間を短くする
     usleep(200 * 1000 * cond.dt);
-    printf("\e[%dA", cond.height+3);// 壁とパラメータ表示分で3行
+    printf("\e[%dA", line);// 壁とパラメータ表示分で3行
+    line = 0;
   }
   return EXIT_SUCCESS;
 }
@@ -58,7 +61,9 @@ int main(int argc, char **argv)
 // 実習: 以下に my_ で始まる関数を実装する
 // 最終的に phisics2.h 内の事前に用意された関数プロトタイプをコメントアウト
 
-void my_plot_objects(Object objs[], const size_t numobj, const double t, const Condition cond) {
+int my_plot_objects(Object objs[], const size_t numobj, const double t, const Condition cond) {
+
+  int line = 0;
 
   char board[cond.height+2][cond.width+2];
 
@@ -101,11 +106,17 @@ void my_plot_objects(Object objs[], const size_t numobj, const double t, const C
     printf("\r\n");
   }
 
+  line += cond.height + 2;
+
   //情報を表示
-  //printf("y:%lf \r\n", objs[0].y);
-  //printf("t =  33.0, objs[0].y =  -15.43, objs[1].y =  999.96", )
-  printf("t = %4.1lf, objs[0].y = %6.2lf, objs[0].x = %6.2lf objs[1].y = %6.2lf, cor = %.2lf\r\n",
-    t, objs[0].y, objs[0].x, objs[1].y, cond.cor);
+  printf("t = %4.1lf, cor = %0.2lf \r\n", t, cond.cor);
+  for (int i=0; i<numobj; i++) {
+    printf("obj[%d].y = %6.2lf, objs[%d].x = %6.2lf \r\n", i, objs[i].y, i, objs[i].x);
+  }
+
+  line += numobj + 1;
+
+  return line;
 
 }
 
@@ -158,11 +169,13 @@ void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
         objs[i].vy *= -cond.cor;
       }
 
+      // 右の壁
       if (is_monotonic(objs[i].prev_x, cond.width/2, objs[i].x)) {
         objs[i].x = cond.width/2 - (objs[i].x - cond.width/2) * cond.cor;
         objs[i].vx *= -cond.cor;
       }
 
+      // 左の壁
       if (is_monotonic(objs[i].prev_x, -cond.width/2, objs[i].x)) {
         objs[i].x = -cond.width/2 + (-cond.width/2 - objs[i].x) * cond.cor;
         objs[i].vx *= -cond.cor;
