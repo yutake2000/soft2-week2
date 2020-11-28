@@ -28,8 +28,8 @@ int main(int argc, char **argv)
   Object objects[objnum];
 
   // objects[1] は巨大な物体を画面外に... 地球のようなものを想定
-  objects[0] = (Object){ .m = 60.0, .y = -19.9, .vy = 7.0};
-  objects[1] = (Object){ .m = 100000.0, .y =  1000.0, .vy = 0.0};
+  objects[0] = (Object){ .m = 60.0, .y = -19.9, .x = -30, .vy = 7.0, .vx = 2.0};
+  objects[1] = (Object){ .m = 100000.0, .y =  1000.0, .x = 0, .vy = 0.0, .vx = 0.0};
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
   const double stop_time = 400;
@@ -72,7 +72,7 @@ void my_plot_objects(Object objs[], const size_t numobj, const double t, const C
   // 物体
   for (int i=0; i<numobj; i++) {
     int y = objs[i].y + cond.height/2 + 1;
-    int x = cond.width/2 + 1;
+    int x = objs[i].x + cond.width/2 + 1;
     if (0 <= y && y < cond.height+2 && 0 <= x && x < cond.width+2) {
       board[y][x] = 'o';
     }
@@ -111,19 +111,14 @@ void my_plot_objects(Object objs[], const size_t numobj, const double t, const C
 
 void my_update_velocities(Object objs[], const size_t numobj, const Condition cond) {
 
-  // それぞれの物体同士の距離を計算
-  double dist[numobj][numobj];
-  for (int i=0; i<numobj; i++) {
-    for (int j=0; j<numobj; j++) {
-      dist[i][j] = fabs(objs[i].y - objs[j].y);
-    }
-  }
-
   // 速度を更新
   for (int i=0; i<numobj; i++) {
     for (int j=0; j<numobj; j++) {
       if (i == j) continue;
-      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist[i][j], 3);
+
+      double dist = sqrt(pow(objs[i].y - objs[j].y, 2) + pow(objs[i].x - objs[j].x, 2));
+      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3);
+      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3);
     }
   }
 }
@@ -135,6 +130,8 @@ void my_update_positions(Object objs[], const size_t numobj, const Condition con
   for (int i=0; i<numobj; i++) {
     objs[i].prev_y = objs[i].y;
     objs[i].y += objs[i].vy * cond.dt;
+    objs[i].prev_x = objs[i].x;
+    objs[i].x += objs[i].vx * cond.dt;
   }
 
 }

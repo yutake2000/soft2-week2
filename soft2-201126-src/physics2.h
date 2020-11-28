@@ -13,9 +13,9 @@ typedef struct condition
 typedef struct object
 {
   double m;
-  double y;
-  double prev_y; // 壁からの反発に使用
-  double vy;
+  double y, x;
+  double prev_y, prev_x; // 壁からの反発に使用
+  double vy, vx;
 } Object;
 
 // 授業で用意した関数のプロトタイプ宣言
