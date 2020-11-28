@@ -1,6 +1,22 @@
 # アライメントの考察
 struct_alignment.cを実行すると以下のような出力を得た。
 
+```
+address
+             s_end                 s3                 s2                 s1            s_begin
+    0x7ffee48e7720     0x7ffee48e77a0     0x7ffee48e7820     0x7ffee48e78a8     0x7ffee48e7928
+
+sizeof
+         student  tagged_student1  tagged_student2
+             128              136              128
+
+   s_end: 0x7ffee48e7720 0x7ffee48e7724 0x7ffee48e7728 0x7ffee48e778c 0x7ffee48e7790 0x7ffee48e7798
+      s3: 0x7ffee48e77a0 0x7ffee48e77a4 0x7ffee48e77a8 0x7ffee48e780c 0x7ffee48e7810 0x7ffee48e7818
+      s2: 0x7ffee48e7820 0x7ffee48e7824 0x7ffee48e7888 0x7ffee48e7890 0x7ffee48e7898 0x7ffee48e78a0
+      s1: 0x7ffee48e78a8 0x7ffee48e78ac 0x7ffee48e7910 0x7ffee48e7918 0x7ffee48e7920
+ s_begin: 0x7ffee48e7928 0x7ffee48e792c 0x7ffee48e7990 0x7ffee48e7998 0x7ffee48e79a0
+```
+
 struct student, tagged_student1, tagged_student2それぞれのメンバ変数のサイズを合計すると124, 125, 125なので、4バイト、11バイト、3バイトのパディングが存在することになる。
 
 それぞれの構造体のアドレスが8の倍数(下1桁が0か8)になっているのは、8バイト単位で読み込むのが都合が良いからだろう。
@@ -17,20 +33,3 @@ s2の3番目と4番目の変数の間にも同様の理由で4バイトのパデ
 s_endの1番目と2番目に注目するとcharの後に3バイトのパディングがあることがわかる。
 これは次が4バイトのintでアドレスを4の倍数にするためである。
 s_beginの場合と異なりintの場合は8の倍数にする必要はない。
-
-
-```
-address
-              send                 s3                 s2                 s1             sbegin
-    0x7ffee48e7720     0x7ffee48e77a0     0x7ffee48e7820     0x7ffee48e78a8     0x7ffee48e7928
-
-sizeof
-         student  tagged_student1  tagged_student2
-             128              136              128
-
-   s_end: 0x7ffee48e7720 0x7ffee48e7724 0x7ffee48e7728 0x7ffee48e778c 0x7ffee48e7790 0x7ffee48e7798
-      s3: 0x7ffee48e77a0 0x7ffee48e77a4 0x7ffee48e77a8 0x7ffee48e780c 0x7ffee48e7810 0x7ffee48e7818
-      s2: 0x7ffee48e7820 0x7ffee48e7824 0x7ffee48e7888 0x7ffee48e7890 0x7ffee48e7898 0x7ffee48e78a0
-      s1: 0x7ffee48e78a8 0x7ffee48e78ac 0x7ffee48e7910 0x7ffee48e7918 0x7ffee48e7920
- s_begin: 0x7ffee48e7928 0x7ffee48e792c 0x7ffee48e7990 0x7ffee48e7998 0x7ffee48e79a0
-```

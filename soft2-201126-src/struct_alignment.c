@@ -53,7 +53,7 @@ int main (int argc, char**argv)
   /* printf で %p フォーマットを指定する*/
   /* 逆順に表示（send, s3, s2, s1, sbegin の順）*/
 
-  printf("address\n%18s %18s %18s %18s %18s\n", "send", "s3", "s2", "s1", "sbegin");
+  printf("address\n%18s %18s %18s %18s %18s\n", "s_end", "s3", "s2", "s1", "s_begin");
   printf("%18p %18p %18p %18p %18p\n\n", &s_end, &s3, &s2, &s1, &s_begin);
 
   /* 以下には各構造体のサイズをsizeof演算子で計算し、表示する */
