@@ -29,4 +29,6 @@ void bounce(Object objs[], const size_t numobj, const Condition cond);
 // 実装できたらmain関数で上記と入れ替えていく
 // my_plot_objects(), my_update_velocities(), my_update_positions(), my_bounce の4つ 
 
+void my_update_velocities(Object objs[], const size_t numobj, const Condition cond);
 void my_update_positions(Object objs[], const size_t numobj, const Condition cond);
+void my_bounce(Object objs[], const size_t numobj, const Condition cond);

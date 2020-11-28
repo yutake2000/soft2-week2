@@ -27,7 +27,7 @@ int main(int argc, char **argv)
   printf("\n");
   for (int i = 0 ; t <= stop_time ; i++){
     t = i * cond.dt;
-    update_velocities(objects, objnum, cond);
+    my_update_velocities(objects, objnum, cond);
     my_update_positions(objects, objnum, cond);
     bounce(objects, objnum, cond);
     
@@ -43,9 +43,35 @@ int main(int argc, char **argv)
 // 実習: 以下に my_ で始まる関数を実装する
 // 最終的に phisics2.h 内の事前に用意された関数プロトタイプをコメントアウト
 
+void my_update_velocities(Object objs[], const size_t numobj, const Condition cond) {
+
+  // それぞれの物体同士の距離を計算
+  double dist[numobj][numobj];
+  for (int i=0; i<numobj; i++) {
+    for (int j=0; j<numobj; j++) {
+      dist[i][j] = fabs(objs[i].y - objs[j].y);
+    }
+  }
+
+  // 速度を更新
+  for (int i=0; i<numobj; i++) {
+    for (int j=0; j<numobj; j++) {
+      if (i == j) continue;
+      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist[i][j], 3);
+    }
+  }
+}
+
+
 void my_update_positions(Object objs[], const size_t numobj, const Condition cond) {
   for (int i=0; i<numobj; i++) {
     objs[i].prev_y = objs[i].y;
     objs[i].y += objs[i].vy * cond.dt;
   }
+}
+
+void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
+
+  
+  
 }
