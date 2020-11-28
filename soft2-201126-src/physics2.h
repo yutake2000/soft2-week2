@@ -36,7 +36,7 @@ void my_update_positions(Object objs[], const size_t numobj, const Condition con
 void my_bounce(Object objs[], const size_t numobj, const Condition cond);
 
 // 座標が画面内にあるかどうか判定する
-int in_screen(double y, const Condition cond);
+int in_screen(double y, double x, const Condition cond);
 
 // a, b, cがこの順に単調増加または単調減少であるかどうかを判定する
 int is_monotonic(double a, double b, double c);

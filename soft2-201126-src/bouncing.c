@@ -28,7 +28,7 @@ int main(int argc, char **argv)
   Object objects[objnum];
 
   // objects[1] は巨大な物体を画面外に... 地球のようなものを想定
-  objects[0] = (Object){ .m = 60.0, .y = -19.9, .x = -30, .vy = 7.0, .vx = 2.0};
+  objects[0] = (Object){ .m = 60.0, .y = -19.9, .x = -30, .vy = 7.0, .vx = 4.0};
   objects[1] = (Object){ .m = 100000.0, .y =  1000.0, .x = 0, .vy = 0.0, .vx = 0.0};
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
@@ -104,7 +104,8 @@ void my_plot_objects(Object objs[], const size_t numobj, const double t, const C
   //情報を表示
   //printf("y:%lf \r\n", objs[0].y);
   //printf("t =  33.0, objs[0].y =  -15.43, objs[1].y =  999.96", )
-  printf("t = %4.1lf, objs[0].y = %6.2lf, objs[1].y = %6.2lf, cor = %.2lf\r\n", t, objs[0].y, objs[1].y, cond.cor);
+  printf("t = %4.1lf, objs[0].y = %6.2lf, objs[0].x = %6.2lf objs[1].y = %6.2lf, cor = %.2lf\r\n",
+    t, objs[0].y, objs[0].x, objs[1].y, cond.cor);
 
 }
 
@@ -141,19 +142,30 @@ void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
   for (int i=0; i<numobj; i++) {
 
     // 画面端を横切った場合
-    if (in_screen(objs[i].prev_y, cond) != in_screen(objs[i].y, cond)) {
-      objs[i].vy *= -cond.cor;
+    if (in_screen(objs[i].prev_y, objs[i].prev_x, cond) != in_screen(objs[i].y, objs[i].x, cond)) {
 
       // 下の壁の座標をprev_yとyで挟んでいる場合
       // つまり、下の壁を通過した場合(上からでも下からでも)
       if (is_monotonic(objs[i].prev_y, cond.height/2, objs[i].y)) {
         // 画面内から画面外なら (objs[i].y - cond.height/2) > 0
         objs[i].y = cond.height/2 - (objs[i].y - cond.height/2) * cond.cor;
+        objs[i].vy *= -cond.cor;
       }
 
       // 上の壁を通過した場合(上からでも下からでも)
       if (is_monotonic(objs[i].prev_y, -cond.height/2, objs[i].y)) {
         objs[i].y = -cond.height/2 + (-cond.height/2 - objs[i].y) * cond.cor;
+        objs[i].vy *= -cond.cor;
+      }
+
+      if (is_monotonic(objs[i].prev_x, cond.width/2, objs[i].x)) {
+        objs[i].x = cond.width/2 - (objs[i].x - cond.width/2) * cond.cor;
+        objs[i].vx *= -cond.cor;
+      }
+
+      if (is_monotonic(objs[i].prev_x, -cond.width/2, objs[i].x)) {
+        objs[i].x = -cond.width/2 + (-cond.width/2 - objs[i].x) * cond.cor;
+        objs[i].vx *= -cond.cor;
       }
     }
 
@@ -161,8 +173,8 @@ void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
 
 }
 
-int in_screen(double y, const Condition cond) {
-  return -cond.height/2 <= y && y <= cond.height/2;
+int in_screen(double y, double x, const Condition cond) {
+  return -cond.height/2 <= y && y <= cond.height/2 && -cond.width/2 <= x && x <= cond.width/2;
 }
 
 int is_monotonic(double a, double b, double c) {
