@@ -32,11 +32,6 @@ int main(int argc, char **argv)
 
   load_objects(objnum, objects, argv[2], cond);
 
-  // objects[2] は巨大な物体を画面外に... 地球のようなものを想定
-  //objects[0] = (Object){ .m = 60.0, .y = -19.9, .x = -30, .vy = 7.0, .vx = 12};
-  //objects[1] = (Object){ .m = 60.0, .y = -19.9, .x = 30, .vy = 4.0, .vx = 6.0};
-  //objects[2] = (Object){ .m = 100000.0, .y =  1000.0, .x = 0, .vy = 0.0, .vx = 0.0};
-
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
   const double stop_time = 400;
   double t = 0;
@@ -47,9 +42,6 @@ int main(int argc, char **argv)
     my_update_velocities(objects, objnum, cond);
     my_update_positions(objects, objnum, cond);
     my_bounce(objects, objnum, cond);
-
-    //デバッグ出力 2> out.txt
-    //fprintf(stderr, "%lf\n", objects[0].y);
     
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
     line += my_plot_objects(objects, objnum, t, cond);
@@ -57,7 +49,7 @@ int main(int argc, char **argv)
     // 200 x 1000us = 200 ms ずつ停止
     // ただし、時間の刻み幅が小さいときはそれに合わせて時間を短くする
     usleep(200 * 1000 * cond.dt);
-    printf("\e[%dA", line);// 壁とパラメータ表示分で3行
+    printf("\e[%dA", line);
     line = 0;
   }
   return EXIT_SUCCESS;
@@ -196,6 +188,7 @@ void load_objects(int numobj, Object objs[], char filename[], const Condition co
   FILE *fp = fopen(filename, "r");
   if (fp == NULL) {
     fprintf(stderr, "Couldn't open '%s'\r\n", filename);
+    exit(1);
   }
 
   int buffer_len = 1000;
