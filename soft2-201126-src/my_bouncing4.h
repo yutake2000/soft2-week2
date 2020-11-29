@@ -7,6 +7,7 @@ typedef struct condition
   const double G; // 重力定数
   const double dt; // シミュレーションの時間幅
   const double cor; // 壁の反発係数
+  const double au; // 天文単位
 } Condition;
 
 // 個々の物体を表す構造体
@@ -34,3 +35,6 @@ void load_objects(size_t numobj, Object objs[], char filename[], const Condition
 
 // 近いオブジェクト同士を融合させる
 void fusion_objects(Object objs[], size_t *numobj, const Condition cond);
+
+// 二つのオブジェクトの距離を求める
+double distance(Object o1, Object o2, const Condition cond);

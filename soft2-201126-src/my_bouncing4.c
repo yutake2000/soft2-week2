@@ -44,9 +44,10 @@ int main(int argc, char **argv)
   const Condition cond = {
 		    .width  = 75,
 		    .height = 40,
-		    .G = 1.0,
-		    .dt = 0.1,
-		    .cor = 0.8
+		    .G = 6.67430e-11,
+		    .dt = 60*60*24,
+		    .cor = 0.8,
+        .au = 149597870700,
   };
 
   if (argc != 3) {
@@ -60,7 +61,7 @@ int main(int argc, char **argv)
   load_objects(objnum, objects, argv[2], cond);
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
-  const double stop_time = 400;
+  const double stop_time = 365;
   double t = 0;
   printf("\n");
   int line = 0;
@@ -71,14 +72,22 @@ int main(int argc, char **argv)
   for (int i = 0 ; t <= stop_time ; i++) {
 
     if (kbhit()) {
-      if (getchar() == 'a') {
-        objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -10};
+      switch(getchar()) {
+        case 'a':
+          objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -10};
+          break;
+        case 'q':
+          objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -15};
+          break;
+        case 'z':
+          objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -5};
+          break;
       }
     }
 
-    t = i * cond.dt;
-    my_update_velocities(objects, objnum, cond);
+    t = i;
     my_update_positions(objects, objnum, cond);
+    my_update_velocities(objects, objnum, cond);
     my_bounce(objects, objnum, cond);
     fusion_objects(objects, &objnum, cond);
     
@@ -87,7 +96,7 @@ int main(int argc, char **argv)
     
     // 200 x 1000us = 200 ms ずつ停止
     // ただし、時間の刻み幅が小さいときはそれに合わせて時間を短くする
-    usleep(200 * 1000 * cond.dt);
+    usleep(1 * 1000 /** cond.dt */);
     printf("\e[%dA", line); // カーソルを表示した分だけ上に戻す
     line = 0;
   }
@@ -109,8 +118,8 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
 
   // 物体
   for (int i=0; i<numobj; i++) {
-    int y = objs[i].y + cond.height/2 + 1;
-    int x = objs[i].x + cond.width/2 + 1;
+    int y = objs[i].y / (cond.au / 10) + cond.height/2 + 1;
+    int x = objs[i].x*2 / (cond.au / 10) + cond.width/2 + 1;
     if (0 <= y && y < cond.height+2 && 0 <= x && x < cond.width+2) {
       board[y][x] = 'o';
     }
@@ -145,7 +154,8 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
   printf("t = %4.1lf, cor = %0.2lf numobj = %zu \r\n", t, cond.cor, numobj);
   line++;
   for (int i=0; i<8 && i<numobj; i++) {
-    printf("obj[%d].y = %6.2lf, objs[%d].x = %6.2lf \r\n", i, objs[i].y, i, objs[i].x);
+    printf("obj[%d] .y = %6.2lf .x = %6.2lf .vy = %6.3lf vx = %6.3lf\r\n",
+      i, objs[i].y / cond.au, objs[i].x / cond.au, objs[i].vy / cond.au * cond.dt, objs[i].vx / cond.au * cond.dt);
     line++;
   }
 
@@ -161,9 +171,9 @@ void my_update_velocities(Object objs[], const size_t numobj, const Condition co
     for (int j=0; j<numobj; j++) {
       if (i == j) continue;
 
-      double dist = sqrt(pow(objs[i].y - objs[j].y, 2) + pow(objs[i].x - objs[j].x, 2));
-      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3);
-      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3);
+      double dist = distance(objs[i], objs[j], cond);
+      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3) * cond.dt;
+      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3) * cond.dt;
     }
   }
 }
@@ -182,6 +192,8 @@ void my_update_positions(Object objs[], const size_t numobj, const Condition con
 }
 
 void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
+
+  return;
 
   for (int i=0; i<numobj; i++) {
 
@@ -261,18 +273,18 @@ void load_objects(size_t numobj, Object objs[], char filename[], const Condition
 
 void fusion_objects(Object objs[], size_t *numobj, const Condition cond) {
 
-  double threshold = 5; // 融合する距離の閾値
+  double threshold = 2; // 融合する距離の閾値
   int count = 0; // 融合した回数(3個が1つになった場合は2回とカウントする)
 
   for (int i=0; i<*numobj; i++) {
     for (int j=i+1; j<*numobj; j++) {
 
-        double dist = sqrt(pow(objs[i].y - objs[j].y, 2) + pow(objs[i].x - objs[j].x, 2));
+        double dist = distance(objs[i], objs[j], cond);
 
         if (dist < threshold) {
-          // 合成後の位置は中点
-          objs[j].y = (objs[i].y + objs[j].y) / 2;
-          objs[j].x = (objs[i].x + objs[j].x) / 2;
+
+          objs[j].y = (objs[i].m * objs[i].y + objs[j].m * objs[j].y) / (objs[i].m + objs[j].m);
+          objs[j].x = (objs[i].m * objs[i].x + objs[j].m * objs[j].x) / (objs[i].m + objs[j].m);
           // 運動量保存から速度を求める
           objs[j].vy = (objs[i].m * objs[i].vy + objs[j].m * objs[j].vy) / (objs[i].m + objs[j].m);
           objs[j].vx = (objs[i].m * objs[i].vx + objs[j].m * objs[j].vx) / (objs[i].m + objs[j].m);
@@ -302,6 +314,9 @@ void fusion_objects(Object objs[], size_t *numobj, const Condition cond) {
   *numobj -= count;
 }
 
+double distance(Object o1, Object o2, const Condition cond) {
+  return sqrt(pow(o1.y - o2.y, 2) + pow(o1.x - o2.x, 2));
+}
 
 int in_screen(double y, double x, const Condition cond) {
   return -cond.height/2 <= y && y <= cond.height/2 && -cond.width/2 <= x && x <= cond.width/2;
