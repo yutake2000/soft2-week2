@@ -1,8 +1,30 @@
 /*
-  画面の上下どちらでもバウンド可能
-  画面外から画面内に入ろうとした場合もバウンド可能
-  反発係数を0.01などの小さな値にしたときに自然な挙動をするように、速さだけでなく跳ね上がる距離にも反発係数をかけた
-  dtを小さくして、その分スリープ時間を短くした(シミュレーションの1秒が現実時間の200msになるように)
+  太陽系の惑星シミュレーション
+
+  表示範囲の制限で地球型惑星のみ。
+  Wikipediaの各惑星の情報をもとに、初期パラメータに遠日点の距離と速度を用いた。
+  (速度は面積速度一定の法則から平均公転距離*平均公転速度/遠日点距離で求めた。)
+
+  現在の惑星の位置は調べてもわからなかったので、一直線上に並べて、それらが全て遠日点と仮定しシミュレーションしている。
+  よって惑星同士の位置関係は本来と異なるが、それぞれの惑星の軌道はおおよそ再現できていると思われる。
+  公転周期も実際のものとほぼ一致している(特に、365日で地球が一周している)。
+  ただし、公転周期の小さい水星は誤差が大きくなる。
+
+  初期位置と速度を現在のものに変更できれば未来の惑星位置が予測できる。
+
+  0.1auが高さ1マス、幅2マス分になっている。
+  (幅が2倍になっているのは、軌道が縦長に見えてしまうのを防ぐため。)
+
+  コマンドライン引数に日数も指定できる
+  実行例:
+    水星の公転周期
+    ./a.out 5 data4_sun.dat 87.97
+    金星の公転周期
+    ./a.out 5 data4_sun.dat 224.70
+    地球の公転周期(引数を省略すると365になる)
+    ./a.out 5 data4_sun.dat
+    火星の公転周期
+    ./a.out 5 data4_sun.dat 686.98
 */
 
 #include <stdio.h>
@@ -13,32 +35,6 @@
 #include <fcntl.h>
 #include "my_bouncing4.h"
 
-int kbhit(void)
-{
-  struct termios oldt, newt;
-  int ch;
-  int oldf;
-
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-  ch = getchar();
-
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-  if (ch != EOF) {
-    ungetc(ch, stdin);
-    return 1;
-  }
-
-  return 0;
-}
-
 int main(int argc, char **argv)
 {
   const Condition cond = {
@@ -46,11 +42,10 @@ int main(int argc, char **argv)
 		    .height = 40,
 		    .G = 6.67430e-11,
 		    .dt = 60*60*24,
-		    .cor = 0.8,
         .au = 149597870700,
   };
 
-  if (argc != 3) {
+  if (argc < 3) {
     fprintf(stderr, "usage: <objnum> <filename>\n");
     return 1;
   }
@@ -61,45 +56,26 @@ int main(int argc, char **argv)
   load_objects(objnum, objects, argv[2], cond);
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
-  const double stop_time = 365;
+  const double stop_time = (argc == 4 ? atof(argv[3]) : 365) * 60 * 60 * 24;
   double t = 0;
-  printf("\n");
   int line = 0;
   char c = 0;
 
-  // 初期位置で融合可能な場合は融合する(そうしないと画面外に吹っ飛んでいく)
-  fusion_objects(objects, &objnum, cond);
-  for (int i = 0 ; t <= stop_time ; i++) {
+  for (int i = 0 ; t < stop_time ; i++) {
 
-    if (kbhit()) {
-      switch(getchar()) {
-        case 'a':
-          objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -10};
-          break;
-        case 'q':
-          objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -15};
-          break;
-        case 'z':
-          objects[objnum++] = (Object) {.m = 60, .x = -30, .y = 19.9, .vx = 7.0, .vy = -5};
-          break;
-      }
-    }
+    if (line > 0) printf("\e[%dA", line); // カーソルを表示した分だけ上に戻す
+    line = 0;
 
-    t = i;
+    t = i * cond.dt;
     my_update_positions(objects, objnum, cond);
     my_update_velocities(objects, objnum, cond);
-    my_bounce(objects, objnum, cond);
-    fusion_objects(objects, &objnum, cond);
     
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
     line += my_plot_objects(objects, objnum, t, cond);
     
-    // 200 x 1000us = 200 ms ずつ停止
-    // ただし、時間の刻み幅が小さいときはそれに合わせて時間を短くする
-    usleep(1 * 1000 /** cond.dt */);
-    printf("\e[%dA", line); // カーソルを表示した分だけ上に戻す
-    line = 0;
+    usleep(10 * 1000);
   }
+
   return EXIT_SUCCESS;
 }
 
@@ -151,10 +127,10 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
   line += cond.height + 2;
 
   //情報を表示
-  printf("t = %4.1lf, cor = %0.2lf numobj = %zu \r\n", t, cond.cor, numobj);
+  printf("t = %4.1lf days, numobj = %zu \r\n", t / 60 / 60 / 24, numobj);
   line++;
   for (int i=0; i<8 && i<numobj; i++) {
-    printf("obj[%d] .y = %6.2lf .x = %6.2lf .vy = %6.3lf vx = %6.3lf\r\n",
+    printf("%d: .y = %6.2lf .x = %6.2lf [au] .vy = %6.3lf vx = %6.3lf [au/day]\r\n",
       i, objs[i].y / cond.au, objs[i].x / cond.au, objs[i].vy / cond.au * cond.dt, objs[i].vx / cond.au * cond.dt);
     line++;
   }
@@ -191,46 +167,6 @@ void my_update_positions(Object objs[], const size_t numobj, const Condition con
 
 }
 
-void my_bounce(Object objs[], const size_t numobj, const Condition cond) {
-
-  return;
-
-  for (int i=0; i<numobj; i++) {
-
-    // 画面端を横切った場合
-    if (in_screen(objs[i].prev_y, objs[i].prev_x, cond) != in_screen(objs[i].y, objs[i].x, cond)) {
-
-      // 下の壁の座標をprev_yとyで挟んでいる場合
-      // つまり、下の壁を通過した場合(上からでも下からでも)
-      if (is_monotonic(objs[i].prev_y, cond.height/2, objs[i].y)) {
-        // 画面内から画面外なら (objs[i].y - cond.height/2) > 0
-        objs[i].y = cond.height/2 - (objs[i].y - cond.height/2) * cond.cor;
-        objs[i].vy *= -cond.cor;
-      }
-
-      // 上の壁を通過した場合(上からでも下からでも)
-      if (is_monotonic(objs[i].prev_y, -cond.height/2, objs[i].y)) {
-        objs[i].y = -cond.height/2 + (-cond.height/2 - objs[i].y) * cond.cor;
-        objs[i].vy *= -cond.cor;
-      }
-
-      // 右の壁
-      if (is_monotonic(objs[i].prev_x, cond.width/2, objs[i].x)) {
-        objs[i].x = cond.width/2 - (objs[i].x - cond.width/2) * cond.cor;
-        objs[i].vx *= -cond.cor;
-      }
-
-      // 左の壁
-      if (is_monotonic(objs[i].prev_x, -cond.width/2, objs[i].x)) {
-        objs[i].x = -cond.width/2 + (-cond.width/2 - objs[i].x) * cond.cor;
-        objs[i].vx *= -cond.cor;
-      }
-    }
-
-  }
-
-}
-
 void load_objects(size_t numobj, Object objs[], char filename[], const Condition cond) {
 
   FILE *fp = fopen(filename, "r");
@@ -252,66 +188,8 @@ void load_objects(size_t numobj, Object objs[], char filename[], const Condition
     i++;
   }
 
-  // 足りない分はランダム生成
-  while (i < numobj) {
-    objs[i].m = (double)rand() / RAND_MAX * 40 + 40;
-    objs[i].x = (double)rand() / RAND_MAX * cond.width - cond.width / 2;
-    objs[i].y = (double)rand() / RAND_MAX * cond.height - cond.height / 2;
-    objs[i].vx = (double)rand() / RAND_MAX * 20 - 10;
-    objs[i].vy = (double)rand() / RAND_MAX * 20 - 10;
-    i++;
-  }
-
-  // 初期値を表示
-  for (int j=0; j<numobj; j++) {
-    printf("%.16lf %.16lf %.16lf %.16lf %.16lf\r\n", objs[j].m, objs[j].x, objs[j].y, objs[j].vx, objs[j].vy);
-  }
-
   fclose(fp);
 
-}
-
-void fusion_objects(Object objs[], size_t *numobj, const Condition cond) {
-
-  double threshold = 2; // 融合する距離の閾値
-  int count = 0; // 融合した回数(3個が1つになった場合は2回とカウントする)
-
-  for (int i=0; i<*numobj; i++) {
-    for (int j=i+1; j<*numobj; j++) {
-
-        double dist = distance(objs[i], objs[j], cond);
-
-        if (dist < threshold) {
-
-          objs[j].y = (objs[i].m * objs[i].y + objs[j].m * objs[j].y) / (objs[i].m + objs[j].m);
-          objs[j].x = (objs[i].m * objs[i].x + objs[j].m * objs[j].x) / (objs[i].m + objs[j].m);
-          // 運動量保存から速度を求める
-          objs[j].vy = (objs[i].m * objs[i].vy + objs[j].m * objs[j].vy) / (objs[i].m + objs[j].m);
-          objs[j].vx = (objs[i].m * objs[i].vx + objs[j].m * objs[j].vx) / (objs[i].m + objs[j].m);
-
-          objs[j].m += objs[i].m;
-
-          count++;
-
-          // インデックスの小さい方を後で消滅させるためにm=0としておき、これ以降参照しないようにbreakする
-          objs[i].m = 0;
-          break;
-        }
-
-    }
-  }
-
-  // バブルソートの要領で残ったオブジェクトを前に詰める
-  for (int i=*numobj; i>=0; i--) {
-    for (int j=0; j<i; j++) {
-      if (objs[j].m == 0) {
-        objs[j] = objs[j+1];
-        objs[j+1].m = 0;
-      }
-    }
-  }
-
-  *numobj -= count;
 }
 
 double distance(Object o1, Object o2, const Condition cond) {
