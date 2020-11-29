@@ -5,7 +5,7 @@
   コマンドライン引数に反発係数を渡すことも可能
     実行例: ./a.out 0.01
   dtを小さくして、その分スリープ時間を短くした(シミュレーションの1秒が現実時間の200msになるように)
-  初速度を大きくして上の壁とも衝突するようにした
+  Gが大きい方が面白い挙動をするのでGを大きくした
 */
 
 #include <stdio.h>
@@ -19,7 +19,7 @@ int main(int argc, char **argv)
   const Condition cond = {
 		    .width  = 75,
 		    .height = 40,
-		    .G = 1.0,
+		    .G = 10.0,
 		    .dt = 0.1,
 		    .cor = (argc == 2 ? atof(argv[1]) : 0.9)
   };
@@ -129,8 +129,8 @@ void my_update_velocities(Object objs[], const size_t numobj, const Condition co
       if (i == j) continue;
 
       double dist = sqrt(pow(objs[i].y - objs[j].y, 2) + pow(objs[i].x - objs[j].x, 2));
-      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3);
-      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3);
+      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3) * cond.dt;
+      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3) * cond.dt;
     }
   }
 }

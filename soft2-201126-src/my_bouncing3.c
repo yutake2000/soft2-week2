@@ -3,6 +3,13 @@
   画面外から画面内に入ろうとした場合もバウンド可能
   反発係数を0.01などの小さな値にしたときに自然な挙動をするように、速さだけでなく跳ね上がる距離にも反発係数をかけた
   dtを小さくして、その分スリープ時間を短くした(シミュレーションの1秒が現実時間の200msになるように)
+  Gが大きい方が面白い挙動をするのでGを大きくした
+
+  実行例:
+    t=20あたりから二体がくるくるする
+    ./a.out 10 data3_kurukuru.dat
+    三体の初期値が同じだった場合に動くかの確認
+    ./a.out 3 data3_same.dat
 */
 
 #include <stdio.h>
@@ -16,7 +23,7 @@ int main(int argc, char **argv)
   const Condition cond = {
 		    .width  = 75,
 		    .height = 40,
-		    .G = 1.0,
+		    .G = 10.0,
 		    .dt = 0.1,
 		    .cor = 0.8
   };
@@ -126,8 +133,8 @@ void my_update_velocities(Object objs[], const size_t numobj, const Condition co
       if (i == j) continue;
 
       double dist = sqrt(pow(objs[i].y - objs[j].y, 2) + pow(objs[i].x - objs[j].x, 2));
-      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3);
-      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3);
+      objs[i].vy += cond.G * objs[j].m * (objs[j].y - objs[i].y) / pow(dist, 3) * cond.dt;
+      objs[i].vx += cond.G * objs[j].m * (objs[j].x - objs[i].x) / pow(dist, 3) * cond.dt;
     }
   }
 }
