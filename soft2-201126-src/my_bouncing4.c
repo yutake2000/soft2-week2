@@ -17,37 +17,45 @@
   (幅が2倍になっているのは、軌道が縦長に見えてしまうのを防ぐため。)
 
   コマンドライン引数は以下の通り
-    [ファイル名 | moon] (縮尺[au/高さ1マス] シミュレーション時間[日] 時間刻み幅[日])
+    ファイル名 (シミュレーション時間[日] 時間刻み幅[日] 縮尺[au/高さ1マス])
+  または
+    moon (シミュレーション時間[日] 時間刻み幅[日])
 
   ファイルの形式はmy_bouncing2.cで読み込むものと異なるので注意。
   また、オブジェクト数がファイルに書かれたものより多い場合もランダム生成はしない。
 
   シミュレーション時間に公転周期を設定すると1周して同じ位置に戻ってくるのが確認できる。
-  (最初に1秒止まるのは初期位置を確認するため。)
+  初期位置を確認できるように、最初に1秒止まるようになっている。
+  上の4つの例では地球型惑星のみが表示範囲に含まれる。
+
   実行例:
     水星
-    ./a.out data4_solar_system.dat 0.1 87.97
+    ./a.out data4_solar_system.dat 87.97
 
     金星
-    ./a.out data4_solar_system.dat 0.1 224.70
+    ./a.out data4_solar_system.dat 224.70
 
     地球(引数を省略すると地球が一番見やすくなる設定になる)
     ./a.out data4_solar_system.dat
 
     火星
-    ./a.out data4_solar_system.dat 0.1 686.98
+    ./a.out data4_solar_system.dat 686.98
 
     木星
-    ./a.out data4_solar_system.dat 2 4329
+    ./a.out data4_solar_system.dat 4329 3 2
 
     土星
-    ./a.out data4_solar_system.dat 2 10779
+    ./a.out data4_solar_system.dat 10779 5 2
 
-    天王星(時間刻み幅を10日にしないと時間がかかる)
-    ./a.out data4_solar_system.dat 2 30752 10
+    天王星
+    ./a.out data4_solar_system.dat 30752 10 2
 
     海王星
-    ./a.out data4_solar_system.dat 2 60148 10
+    ./a.out data4_solar_system.dat 60148 10 2
+
+    太陽と地球と月(実際の公転周期より少し短くなってしまう)
+    ./a.out moon 27.3 0.05
+    ./a.out moon 365 0.1
 */
 
 #include <stdio.h>
@@ -56,6 +64,7 @@
 #include <math.h>
 #include <termios.h>
 #include <fcntl.h>
+#include <string.h>
 #include "my_bouncing4.h"
 
 int main(int argc, char **argv)
@@ -64,9 +73,11 @@ int main(int argc, char **argv)
 		    .width  = 75,
 		    .height = 38,
 		    .G = 6.67430e-11,
-		    .dt = 60*60*24 * (argc >= 5 ? atof(argv[4]) : 1),
+		    .dt = 60*60*24 * (argc >= 4 ? atof(argv[3]) : 1),
         .au = 149597870700,
-        .scale = (argc >= 3 ? atof(argv[2]) : 0.1)
+        .earth_to_moon = 384400000,
+        .scale = (argc >= 5 ? atof(argv[4]) : 0.1),
+        .moon = (strcmp(argv[1], "moon") == 0 ? 1 : 0)
   };
 
   if (argc < 2) {
@@ -80,7 +91,7 @@ int main(int argc, char **argv)
   load_objects(objects, &objnum, argv[1], cond);
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
-  const double stop_time = (argc >= 4 ? atof(argv[3]) : 365) * 60 * 60 * 24;
+  const double stop_time = (argc >= 3 ? atof(argv[2]) : 365) * 60 * 60 * 24;
   double t = 0;
   int line = 0; // 表示した行数
   
@@ -97,10 +108,15 @@ int main(int argc, char **argv)
     my_update_velocities(objects, objnum, cond);
     
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
+    // ただし、月は地球を中心として、別スケールで描画する
     line += my_plot_objects(objects, objnum, t, cond);
     
     // シミュレーション時間が長いほどスリープ時間を短くする
-    usleep(10 * 1000 / (stop_time / (60 * 60 * 24 * 265)));
+    if (cond.moon) {
+      usleep(1 * 1000);
+    } else {
+      usleep(10 * 1000 / (stop_time / (60 * 60 * 24 * 265)));
+    }
   }
 
   return EXIT_SUCCESS;
@@ -120,12 +136,34 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
   }
 
   // 物体
-  for (int i=0; i<numobj; i++) {
-    int y = objs[i].y / (cond.au * cond.scale) + cond.height/2 + 1;
-    int x = objs[i].x / (cond.au * cond.scale/2) + cond.width/2 + 1;
-    if (0 <= y && y < cond.height+2 && 0 <= x && x < cond.width+2) {
-      board[y][x] = 'o';
+  if (cond.moon) {
+    int y[3], x[3];
+
+    for (int i=0; i<2; i++) {
+      y[i] = objs[i].y / (cond.au * 0.1) + cond.height/2 + 1;
+      x[i] = objs[i].x / (cond.au * 0.1/2) + cond.width/2 + 1;
     }
+
+    // 地球を中心としてスケールも変更
+    y[2] = (objs[2].y - objs[1].y) / (cond.earth_to_moon * 0.2) + y[1];
+    x[2] = (objs[2].x - objs[1].x) / (cond.earth_to_moon * 0.1) + x[1];
+
+    for (int i=0; i<3; i++) {
+      if (0 <= y[i] && y[i] < cond.height+2 && 0 <= x[i] && x[i] < cond.width+2) {
+        board[y[i]][x[i]] = 'o';
+      }
+    }
+
+  } else {
+
+    for (int i=0; i<numobj; i++) {
+      int y = objs[i].y / (cond.au * cond.scale) + cond.height/2 + 1;
+      int x = objs[i].x / (cond.au * cond.scale/2) + cond.width/2 + 1;
+      if (0 <= y && y < cond.height+2 && 0 <= x && x < cond.width+2) {
+        board[y][x] = 'o';
+      }
+    }
+
   }
 
   // 四隅の +
@@ -195,6 +233,26 @@ void my_update_positions(Object objs[], const size_t numobj, const Condition con
 }
 
 void load_objects(Object objs[], size_t *numobj, char filename[], const Condition cond) {
+
+  if (cond.moon) {
+
+    *numobj = 3;
+    objs[0] = (Object) {.m = 1.9891e30, .y = 0, .x = 0, .vy = 0, .vx = 0}; // 太陽
+    objs[1] = (Object) {.m = 5.972e24, .y = 1.0162988 * cond.au, .x = 0, .vy = 0, .vx = 29290}; // 地球
+    objs[2] = (Object) {.m = 7.347673e22}; // 月
+
+    double dist = 1.0129986 * cond.earth_to_moon;
+    double rad = 85.549516 / 360 * 2 * M_PI;
+    double vrad = (85.558427 - 85.549516) / 360 * 2 * M_PI / 60; // 1分の変化量から1秒あたりの変化量を求める
+
+    objs[2].x = objs[1].x + dist *  cos(rad);
+    objs[2].y = objs[1].y + dist * -sin(rad);
+    
+    objs[2].vx = objs[1].vx + dist * vrad * -sin(rad);
+    objs[2].vy = objs[1].vy + dist * vrad * -cos(rad);
+
+    return;
+  }
 
   FILE *fp = fopen(filename, "r");
   if (fp == NULL) {
