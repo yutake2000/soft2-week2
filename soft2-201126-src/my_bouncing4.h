@@ -30,7 +30,7 @@ int in_screen(double y, double x, const Condition cond);
 int is_monotonic(double a, double b, double c);
 
 // オブジェクトファイルを読み込む
-void load_objects(size_t numobj, Object objs[], char filename[], const Condition cond);
+void load_objects(Object objs[], size_t *numobj, char filename[], const Condition cond);
 
 // 二つのオブジェクトの距離を求める
 double distance(Object o1, Object o2, const Condition cond);

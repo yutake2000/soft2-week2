@@ -17,7 +17,7 @@
   (幅が2倍になっているのは、軌道が縦長に見えてしまうのを防ぐため。)
 
   コマンドライン引数は以下の通り
-    オブジェクト数 ファイル名 (縮尺[au/高さ1マス] シミュレーション時間[日] 時間刻み幅[日])
+    [ファイル名 | moon] (縮尺[au/高さ1マス] シミュレーション時間[日] 時間刻み幅[日])
 
   ファイルの形式はmy_bouncing2.cで読み込むものと異なるので注意。
   また、オブジェクト数がファイルに書かれたものより多い場合もランダム生成はしない。
@@ -26,28 +26,28 @@
   (最初に1秒止まるのは初期位置を確認するため。)
   実行例:
     水星
-    ./a.out 9 data4_solar_system.dat 0.1 87.97
+    ./a.out data4_solar_system.dat 0.1 87.97
 
     金星
-    ./a.out 9 data4_solar_system.dat 0.1 224.70
+    ./a.out data4_solar_system.dat 0.1 224.70
 
     地球(引数を省略すると地球が一番見やすくなる設定になる)
-    ./a.out 9 data4_solar_system.dat
+    ./a.out data4_solar_system.dat
 
     火星
-    ./a.out 9 data4_solar_system.dat 0.1 686.98
+    ./a.out data4_solar_system.dat 0.1 686.98
 
     木星
-    ./a.out 9 data4_solar_system.dat 2 4329
+    ./a.out data4_solar_system.dat 2 4329
 
     土星
-    ./a.out 9 data4_solar_system.dat 2 10779
+    ./a.out data4_solar_system.dat 2 10779
 
     天王星(時間刻み幅を10日にしないと時間がかかる)
-    ./a.out 9 data4_solar_system.dat 2 30752 10
+    ./a.out data4_solar_system.dat 2 30752 10
 
     海王星
-    ./a.out 9 data4_solar_system.dat 2 60148 10
+    ./a.out data4_solar_system.dat 2 60148 10
 */
 
 #include <stdio.h>
@@ -64,23 +64,23 @@ int main(int argc, char **argv)
 		    .width  = 75,
 		    .height = 38,
 		    .G = 6.67430e-11,
-		    .dt = 60*60*24 * (argc >= 6 ? atof(argv[5]) : 1),
+		    .dt = 60*60*24 * (argc >= 5 ? atof(argv[4]) : 1),
         .au = 149597870700,
-        .scale = (argc >= 4 ? atof(argv[3]) : 0.1)
+        .scale = (argc >= 3 ? atof(argv[2]) : 0.1)
   };
 
-  if (argc < 3) {
+  if (argc < 2) {
     fprintf(stderr, "usage: <objnum> <filename>\n");
     return 1;
   }
   
-  size_t objnum = atoi(argv[1]);
+  size_t objnum = 0;
   Object objects[100];
 
-  load_objects(objnum, objects, argv[2], cond);
+  load_objects(objects, &objnum, argv[1], cond);
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
-  const double stop_time = (argc >= 5 ? atof(argv[4]) : 365) * 60 * 60 * 24;
+  const double stop_time = (argc >= 4 ? atof(argv[3]) : 365) * 60 * 60 * 24;
   double t = 0;
   int line = 0; // 表示した行数
   
@@ -194,7 +194,7 @@ void my_update_positions(Object objs[], const size_t numobj, const Condition con
 
 }
 
-void load_objects(size_t numobj, Object objs[], char filename[], const Condition cond) {
+void load_objects(Object objs[], size_t *numobj, char filename[], const Condition cond) {
 
   FILE *fp = fopen(filename, "r");
   if (fp == NULL) {
@@ -205,7 +205,7 @@ void load_objects(size_t numobj, Object objs[], char filename[], const Condition
   int buffer_len = 1000;
   char buffer[buffer_len];
   int i = 0; //objsのインデックス
-  while (i < numobj && (fgets(buffer, buffer_len-1, fp)) != NULL) {
+  while ((fgets(buffer, buffer_len-1, fp)) != NULL) {
 
     // #で始まる行はコメント
     if (buffer[0] == '#') continue;
@@ -226,6 +226,8 @@ void load_objects(size_t numobj, Object objs[], char filename[], const Condition
 
     i++;
   }
+
+  *numobj = i;
 
   fclose(fp);
 
