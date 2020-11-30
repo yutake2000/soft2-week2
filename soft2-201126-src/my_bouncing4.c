@@ -1,30 +1,53 @@
 /*
   太陽系の惑星シミュレーション
 
-  表示範囲の制限で地球型惑星のみ。
-  Wikipediaの各惑星の情報をもとに、初期パラメータに遠日点の距離と速度を用いた。
-  (速度は面積速度一定の法則から平均公転距離*平均公転速度/遠日点距離で求めた。)
+  初期位置は2020/06/21 06:44:00(夏至)の惑星の日心座標とした。
+  下記のサイトから「日心黄経(度)」「動径(au)」「日変化(度/日)」をファイルに保存し、x,y,vx,vyはこれらの情報から求めた。
+  (国立天文台 惑星の日心座標: https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/planet_ecliptic.cgi)
 
-  現在の惑星の位置は調べてもわからなかったので、一直線上に並べて、それらが全て遠日点と仮定しシミュレーションしている。
-  よって惑星同士の位置関係は本来と異なるが、それぞれの惑星の軌道はおおよそ再現できていると思われる。
-  公転周期も実際のものとほぼ一致している(特に、365日で地球が一周している)。
-  ただし、公転周期の小さい水星は誤差が大きくなる。
+  ただし、地球の日心座標が得られなかったため太陽の地心座標から計算した。
+  太陽の地心黄経が90.000220度なので、地球の日心黄経は270.000220度とした(光行差を含むが補正はしていない)。
+  地心距離が1.0162988auなので、そのまま動径とした。
+  日変化は2020/06/21 07:44:00(1時間後)の地心黄経90.039996との差の24倍とした。
+  (国立天文台 太陽の地心座標: https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/sun.cgi)
 
-  初期位置と速度を現在のものに変更できれば未来の惑星位置が予測できる。
+  惑星の質量と公転周期はWikipediaから得た。
 
-  0.1auが高さ1マス、幅2マス分になっている。
+  デフォルトでは0.1auが高さ1マス、幅2マス分になっている。
   (幅が2倍になっているのは、軌道が縦長に見えてしまうのを防ぐため。)
 
-  コマンドライン引数に日数も指定できる
+  コマンドライン引数は以下の通り
+    オブジェクト数 ファイル名 (縮尺[au/高さ1マス] シミュレーション時間[日] 時間刻み幅[日])
+
+  ファイルの形式はmy_bouncing2.cで読み込むものと異なるので注意。
+  また、オブジェクト数がファイルに書かれたものより多い場合もランダム生成はしない。
+
+  シミュレーション時間に公転周期を設定すると1周して同じ位置に戻ってくるのが確認できる。
+  (最初に1秒止まるのは初期位置を確認するため。)
   実行例:
-    水星の公転周期
-    ./a.out 5 data4_sun.dat 87.97
-    金星の公転周期
-    ./a.out 5 data4_sun.dat 224.70
-    地球の公転周期(引数を省略すると365になる)
-    ./a.out 5 data4_sun.dat
-    火星の公転周期
-    ./a.out 5 data4_sun.dat 686.98
+    水星
+    ./a.out 9 data4_solar_system.dat 0.1 87.97
+
+    金星
+    ./a.out 9 data4_solar_system.dat 0.1 224.70
+
+    地球(引数を省略すると地球が一番見やすくなる設定になる)
+    ./a.out 9 data4_solar_system.dat
+
+    火星
+    ./a.out 9 data4_solar_system.dat 0.1 686.98
+
+    木星
+    ./a.out 9 data4_solar_system.dat 2 4329
+
+    土星
+    ./a.out 9 data4_solar_system.dat 2 10779
+
+    天王星(時間刻み幅を10日にしないと時間がかかる)
+    ./a.out 9 data4_solar_system.dat 2 30752 10
+
+    海王星
+    ./a.out 9 data4_solar_system.dat 2 60148 10
 */
 
 #include <stdio.h>
@@ -41,8 +64,9 @@ int main(int argc, char **argv)
 		    .width  = 75,
 		    .height = 40,
 		    .G = 6.67430e-11,
-		    .dt = 60*60*24,
+		    .dt = 60*60*24 * (argc >= 6 ? atof(argv[5]) : 1),
         .au = 149597870700,
+        .scale = (argc >= 4 ? atof(argv[3]) : 0.1)
   };
 
   if (argc < 3) {
@@ -56,10 +80,12 @@ int main(int argc, char **argv)
   load_objects(objnum, objects, argv[2], cond);
 
   // シミュレーション. ループは整数で回しつつ、実数時間も更新する
-  const double stop_time = (argc == 4 ? atof(argv[3]) : 365) * 60 * 60 * 24;
+  const double stop_time = (argc >= 5 ? atof(argv[4]) : 365) * 60 * 60 * 24;
   double t = 0;
-  int line = 0;
-  char c = 0;
+  int line = 0; // 表示した行数
+  
+  line = my_plot_objects(objects, objnum, t, cond);
+  usleep(1000 * 1000); //初期配置が分かるように一時停止
 
   for (int i = 0 ; t < stop_time ; i++) {
 
@@ -73,7 +99,8 @@ int main(int argc, char **argv)
     // 表示の座標系は width/2, height/2 のピクセル位置が原点となるようにする
     line += my_plot_objects(objects, objnum, t, cond);
     
-    usleep(10 * 1000);
+    // シミュレーション時間が長いほどスリープ時間を短くする
+    usleep(10 * 1000 / (stop_time / (60 * 60 * 24 * 265)));
   }
 
   return EXIT_SUCCESS;
@@ -94,8 +121,8 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
 
   // 物体
   for (int i=0; i<numobj; i++) {
-    int y = objs[i].y / (cond.au / 10) + cond.height/2 + 1;
-    int x = objs[i].x*2 / (cond.au / 10) + cond.width/2 + 1;
+    int y = objs[i].y / (cond.au * cond.scale) + cond.height/2 + 1;
+    int x = objs[i].x / (cond.au * cond.scale/2) + cond.width/2 + 1;
     if (0 <= y && y < cond.height+2 && 0 <= x && x < cond.width+2) {
       board[y][x] = 'o';
     }
@@ -183,7 +210,19 @@ void load_objects(size_t numobj, Object objs[], char filename[], const Condition
     // #で始まる行はコメント
     if (buffer[0] == '#') continue;
 
-    sscanf(buffer, "%lf %lf %lf %lf %lf", &objs[i].m, &objs[i].x, &objs[i].y, &objs[i].vx, &objs[i].vy);
+    double r, degree, v; // r[au], degree[度], v[度/日]
+
+    sscanf(buffer, "%lf %lf %lf %lf", &objs[i].m, &degree, &r, &v);
+
+    double dist = r * cond.au; // dist[m]
+    double rad = degree / 360 * 2 * M_PI; // rad[rad]
+    double vrad = v / 360 * 2 * M_PI; // vrad[rad]
+
+    objs[i].x = dist *  cos(rad);
+    objs[i].y = dist * -sin(rad); // y軸は下方向が正なので反転
+
+    objs[i].vx = dist * vrad * -sin(rad) / (60 * 60 * 24);
+    objs[i].vy = dist * vrad * -cos(rad) / (60 * 60 * 24);
 
     i++;
   }

@@ -7,6 +7,7 @@ typedef struct condition
   const double G; // 重力定数
   const double dt; // シミュレーションの時間幅
   const double au; // 天文単位
+  const double scale; // scale[au]を高さ1マス分とする
 } Condition;
 
 // 個々の物体を表す構造体
