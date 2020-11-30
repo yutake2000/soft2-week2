@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 {
   const Condition cond = {
 		    .width  = 75,
-		    .height = 40,
+		    .height = 38,
 		    .G = 6.67430e-11,
 		    .dt = 60*60*24 * (argc >= 6 ? atof(argv[5]) : 1),
         .au = 149597870700,
@@ -156,7 +156,7 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
   //情報を表示
   printf("t = %4.1lf days, numobj = %zu \r\n", t / 60 / 60 / 24, numobj);
   line++;
-  for (int i=0; i<8 && i<numobj; i++) {
+  for (int i=0; i<numobj; i++) {
     printf("%d: .y = %6.2lf .x = %6.2lf [au] .vy = %6.3lf vx = %6.3lf [au/day]\r\n",
       i, objs[i].y / cond.au, objs[i].x / cond.au, objs[i].vy / cond.au * cond.dt, objs[i].vx / cond.au * cond.dt);
     line++;
