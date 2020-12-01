@@ -29,7 +29,12 @@
 
   シミュレーション時間に公転周期を設定すると1周して同じ位置に戻ってくるのが確認できる。
   初期位置を確認できるように、最初に1秒止まるようになっている。
+
   上の4つの例では地球型惑星のみが表示範囲に含まれる。
+  その後の4つの例では縮尺を変更し、木星型惑星が見られるようになってる。(ただし、地球型惑星の動きはほとんどわからなくなる。)
+
+  また、下記のサイトでも惑星の位置をシミュレーションできる。
+  (https://stdkmd.net/ssg/)
 
   実行例:
     水星
@@ -210,7 +215,7 @@ int my_plot_objects(Object objs[], const size_t numobj, const double t, const Co
   line++;
   for (int i=0; i<numobj; i++) {
     printf("%d: .y = %6.2lf .x = %6.2lf [au] .vy = %6.3lf vx = %6.3lf [au/day]\r\n",
-      i, objs[i].y / cond.au, objs[i].x / cond.au, objs[i].vy / cond.au * cond.dt, objs[i].vx / cond.au * cond.dt);
+      i, objs[i].y / cond.au, objs[i].x / cond.au, objs[i].vy / cond.au * (60 * 60 * 24), objs[i].vx / cond.au * (60 * 60 * 24));
     line++;
   }
 
