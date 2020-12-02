@@ -77,6 +77,13 @@
 
 int main(int argc, char **argv)
 {
+
+  if (argc < 2) {
+    //ファイル名 (シミュレーション時間[日] 時間刻み幅[日] 縮尺[au/高さ1マス])
+    fprintf(stderr, "usage:\t%s <filename> [<days> <dt> <scale>]\n\t%s moon <days> <dt>\n", argv[0], argv[0]);
+    return 1;
+  }
+
   const Condition cond = {
 		    .width  = 75,
 		    .height = 38,
@@ -87,11 +94,6 @@ int main(int argc, char **argv)
         .scale = (argc >= 5 ? atof(argv[4]) : 0.1),
         .moon = (strcmp(argv[1], "moon") == 0 ? 1 : 0)
   };
-
-  if (argc < 2) {
-    fprintf(stderr, "usage: <objnum> <filename>\n");
-    return 1;
-  }
   
   size_t objnum = 0;
   Object objects[100];
